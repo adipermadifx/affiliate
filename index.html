@@ -1,774 +1,1206 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generator Hook Iklan Penjualan AI — Upload / Paste Gambar</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- html2pdf.js for PDF Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#eef2ff',
-                            100: '#e0e7ff',
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            700: '#4338ca',
-                            800: '#3730a3',
-                            900: '#312e81',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #f8fafc;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-        .drag-active {
-            border-color: #4f46e5 !important;
-            background-color: #eef2ff !important;
-        }
-        @keyframes pulse-ring {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            50% { transform: scale(1.05); opacity: 1; }
-            100% { transform: scale(0.95); opacity: 0.8; }
-        }
-        .pulse-anim {
-            animation: pulse-ring 2s infinite ease-in-out;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Analisis & Diagram Rekap Laporan Afiliasi</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS untuk parsing Excel .xlsx & .csv -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(229, 231, 235, 0.8);
+    }
+    .drop-zone--over {
+      border-color: #6366f1 !important;
+      background-color: #eeeffe !important;
+    }
+  </style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
-        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
-        <span id="toast-message" class="text-xs sm:text-sm font-medium">Berhasil menyalin naskah!</span>
+  <!-- Header Section -->
+  <header class="bg-slate-900 text-white sticky top-0 z-50 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-indigo-600 rounded-lg">
+          <i data-lucide="bar-chart-3" class="w-6 h-6 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold leading-tight">Dashboard Analisis Afiliasi</h1>
+          <p class="text-xs text-slate-400">Diagram & Visualisasi Laporan Penjualan & Komisi</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons & File Upload -->
+      <div class="flex flex-wrap items-center gap-3">
+        <label id="dropZone" for="excelFile" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg cursor-pointer transition shadow-sm border-2 border-dashed border-transparent">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+          <span id="uploadBtnText">Unggah File Excel/CSV</span>
+          <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="hidden" />
+        </label>
+        <button id="resetDataBtn" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm px-3 py-2 rounded-lg border border-slate-700 transition">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          <span>Reset Data Sample</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full space-y-8">
+
+    <!-- Status Banner / Alert -->
+    <div id="statusBanner" class="hidden p-4 rounded-xl border flex items-center justify-between text-sm transition-all">
+      <div class="flex items-center gap-2.5">
+        <i id="statusIcon" data-lucide="info" class="w-5 h-5 flex-shrink-0"></i>
+        <span id="statusText" class="font-medium">Informasi file</span>
+      </div>
+      <button onclick="document.getElementById('statusBanner').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 ml-4">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
     </div>
 
-    <!-- AI Processing Modal -->
-    <div id="ai-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center hidden transition-opacity duration-300">
-        <div class="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl border border-indigo-100 text-center space-y-6 relative overflow-hidden">
-            <div class="w-20 h-20 bg-gradient-to-tr from-indigo-600 to-violet-600 rounded-3xl mx-auto flex items-center justify-center text-white text-3xl shadow-xl shadow-indigo-500/30 pulse-anim">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-            </div>
-            <div>
-                <h3 class="text-xl font-bold text-slate-900">Gemini AI Sedang Menganalisis Gambar...</h3>
-                <p id="ai-status-step" class="text-xs font-semibold text-indigo-600 mt-1">Mendeteksi Produk & Masalah Konsumen...</p>
-            </div>
-            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
-                <div id="ai-progress-bar" class="bg-gradient-to-r from-indigo-600 to-violet-600 h-2.5 rounded-full w-1/4 transition-all duration-500"></div>
-            </div>
-            <p id="ai-status-desc" class="text-xs text-slate-500 leading-relaxed">
-                Menyusun 10 naskah hook iklan (2 paragraf: Masalah & Solusi) beserta deskripsi postingan video & tagar viral.
-            </p>
+    <!-- Filter Bar -->
+    <section class="glass-card rounded-2xl p-5 shadow-sm space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2 font-semibold text-slate-700">
+          <i data-lucide="filter" class="w-4 h-4 text-indigo-600"></i>
+          <span>Filter Data Analisis</span>
         </div>
-    </div>
+        <span id="totalRecordsBadge" class="text-xs bg-indigo-50 text-indigo-700 font-medium px-2.5 py-1 rounded-full border border-indigo-100">
+          Memuat data...
+        </span>
+      </div>
 
-    <!-- Navbar Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <div class="flex items-center gap-3">
-                    <div class="bg-gradient-to-tr from-indigo-600 to-violet-600 p-2.5 rounded-2xl text-white shadow-md shadow-indigo-500/20 flex items-center justify-center">
-                        <i class="fa-solid fa-bolt text-lg"></i>
-                    </div>
-                    <div>
-                        <h1 class="font-extrabold text-base sm:text-lg text-slate-900 leading-tight">Generator Hook Iklan AI</h1>
-                        <p class="text-[11px] text-slate-500">Upload / Paste Gambar $\rightarrow$ 10 Naskah Iklan (Masalah & Solusi)</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <button onclick="copyAllAdsToClipboard()" class="hidden sm:flex items-center gap-2 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition border border-indigo-200">
-                        <i class="fa-regular fa-copy text-indigo-600"></i>
-                        <span>Salin Semua 10 Hook</span>
-                    </button>
-                    <button onclick="exportDoc()" class="flex items-center gap-2 px-3.5 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-semibold transition border border-blue-200">
-                        <i class="fa-solid fa-file-word text-blue-600"></i>
-                        <span>DOC</span>
-                    </button>
-                    <button onclick="exportPDF()" class="flex items-center gap-2 px-3.5 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-xl text-xs font-semibold transition border border-rose-200">
-                        <i class="fa-solid fa-file-pdf text-rose-600"></i>
-                        <span>PDF</span>
-                    </button>
-                </div>
-            </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Filter Nama Toko -->
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Nama Toko</label>
+          <select id="filterToko" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <option value="ALL">Semua Toko</option>
+          </select>
         </div>
-    </header>
 
-    <!-- Main Body Container -->
-    <main class="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <!-- Filter Jenis Konten -->
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Jenis Konten</label>
+          <select id="filterKonten" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <option value="ALL">Semua Jenis Konten</option>
+          </select>
+        </div>
 
-        <!-- Image Input Section (Simple Upload & Paste Area) -->
-        <section class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm relative overflow-hidden space-y-4">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div>
-                    <h2 class="font-bold text-slate-900 text-base flex items-center gap-2">
-                        <i class="fa-solid fa-image text-indigo-600"></i> Input Gambar Produk
-                    </h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Unggah file atau <b>Paste (Ctrl+V / Cmd+V)</b> langsung dari clipboard Anda.</p>
-                </div>
+        <!-- Filter Status Pembayaran -->
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Status Pembayaran</label>
+          <select id="filterStatus" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <option value="ALL">Semua Status</option>
+          </select>
+        </div>
 
-                <!-- Tone / Style Option -->
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-500">Gaya Bahasa:</span>
-                    <select id="ai-tone-select" class="bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 py-2 px-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <option value="persuasive">Persuasif & Solutif (Sangat Konversional)</option>
-                        <option value="storytelling">Storytelling & Drama Relatable</option>
-                        <option value="hard-sell">Hard Sell & Diskon Mendesak</option>
-                        <option value="honest-review">Review Jujur & Demo Masalah</option>
-                    </select>
-                </div>
-            </div>
+        <!-- Cari Produk / ID Pesanan -->
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Cari Produk / ID</label>
+          <div class="relative">
+            <input type="text" id="filterSearch" placeholder="Kata kunci..." class="w-full text-sm bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+          </div>
+        </div>
+      </div>
+    </section>
 
-            <!-- Dropzone / Image Display -->
-            <div id="image-dropzone" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-6 text-center transition cursor-pointer bg-slate-50/50 relative">
-                
-                <!-- Placeholder view -->
-                <div id="upload-placeholder" class="space-y-3 py-4">
-                    <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl mx-auto flex items-center justify-center text-2xl shadow-sm">
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-bold text-slate-800">Klik untuk upload atau Drag & Drop gambar ke sini</p>
-                        <p class="text-xs text-indigo-600 font-semibold mt-1"><i class="fa-regular fa-paste mr-1"></i> atau tekan Ctrl + V untuk Paste gambar dari Clipboard</p>
-                    </div>
-                    <span class="inline-block text-[11px] text-slate-400 bg-white px-3 py-1 rounded-full border border-slate-200">Format: PNG, JPG, JPEG, WEBP</span>
-                </div>
+    <!-- Key Metrics Section (KPI Cards) -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <!-- Total GMV -->
+      <div class="glass-card rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total GMV</span>
+          <div class="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
+            <i data-lucide="trending-up" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h2 id="kpiGMV" class="text-2xl font-bold text-slate-800">Rp 0</h2>
+          <p class="text-xs text-slate-400 mt-1">Nilai total penjualan kotor</p>
+        </div>
+      </div>
 
-                <!-- Image Preview View -->
-                <div id="image-preview-container" class="hidden flex flex-col sm:flex-row items-center justify-center gap-6 py-2">
-                    <div class="relative group">
-                        <img id="preview-img" src="" alt="Pratinjau Gambar" class="max-h-52 rounded-2xl shadow-md border border-slate-200 object-contain">
-                        <button onclick="removeImage(event)" class="absolute -top-2 -right-2 bg-rose-600 hover:bg-rose-700 text-white w-8 h-8 rounded-full shadow-lg flex items-center justify-center text-xs transition">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
-                    <div class="text-left space-y-2 max-w-xs">
-                        <span class="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-emerald-200">Gambar Siap Diproses</span>
-                        <h4 id="preview-file-name" class="font-bold text-slate-800 text-sm truncate">gambar_produk.jpg</h4>
-                        <p class="text-xs text-slate-500">Gemini AI akan mendeteksi fitur fisik, masalah konsumen, dan solusi utama dari produk ini.</p>
-                        <button onclick="triggerFileInput(event)" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold underline inline-block">Ganti Gambar</button>
-                    </div>
-                </div>
+      <!-- Total Komisi Masuk -->
+      <div class="glass-card rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Komisi Akhir</span>
+          <div class="p-2.5 bg-indigo-100 text-indigo-700 rounded-xl">
+            <i data-lucide="wallet" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h2 id="kpiKomisi" class="text-2xl font-bold text-indigo-600">Rp 0</h2>
+          <p class="text-xs text-slate-400 mt-1">Total komisi penghasilan akhir</p>
+        </div>
+      </div>
 
-                <input type="file" id="image-file-input" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
-            </div>
+      <!-- Total Produk Terjual -->
+      <div class="glass-card rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Produk Terjual</span>
+          <div class="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
+            <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h2 id="kpiQty" class="text-2xl font-bold text-slate-800">0 pcs</h2>
+          <p class="text-xs text-slate-400 mt-1">Total unit produk dikirim</p>
+        </div>
+      </div>
 
-            <!-- Process Action Button -->
-            <div class="flex justify-end gap-3 pt-2">
-                <button onclick="generateSampleDemoImage()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs sm:text-sm rounded-xl transition border border-slate-300 flex items-center gap-1.5">
-                    <i class="fa-solid fa-wand-magic"></i>
-                    <span>Pakai Gambar Sampel Demo</span>
-                </button>
-                <button onclick="processImageWithGemini()" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-indigo-500/25 transition transform active:scale-95 flex items-center gap-2">
-                    <i class="fa-solid fa-bolt"></i>
-                    <span>Buat 10 Hook Iklan AI</span>
-                </button>
-            </div>
-        </section>
+      <!-- Rata-rata Rate Komisi -->
+      <div class="glass-card rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Estimasi Comm. Rate</span>
+          <div class="p-2.5 bg-purple-100 text-purple-700 rounded-xl">
+            <i data-lucide="percent" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h2 id="kpiRate" class="text-2xl font-bold text-slate-800">0%</h2>
+          <p class="text-xs text-slate-400 mt-1">Persentase (Komisi / GMV)</p>
+        </div>
+      </div>
+    </section>
 
-        <!-- Detected Product Banner -->
-        <section id="product-info-banner" class="hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 shadow-md border border-indigo-800/40 space-y-3">
-            <div class="flex items-center justify-between">
-                <span class="bg-indigo-500/30 text-indigo-200 text-xs font-bold px-3 py-1 rounded-full border border-indigo-400/30 flex items-center gap-1.5">
-                    <i class="fa-solid fa-brain"></i> Hasil Deteksi Gemini 3.1 Flash
-                </span>
-                <span id="detected-category" class="text-xs bg-white/10 text-slate-200 px-3 py-1 rounded-full border border-white/10 font-semibold">Kategori: -</span>
-            </div>
-            <div>
-                <h3 id="detected-product-name" class="text-xl sm:text-2xl font-extrabold text-white">Nama Produk Terdeteksi</h3>
-                <div id="detected-features-list" class="flex flex-wrap gap-2 mt-3 text-xs text-indigo-200">
-                    <!-- Dynamic badges inserted here -->
-                </div>
-            </div>
-        </section>
+    <!-- DIAGRAM / CHARTS SECTION -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Diagram 1: Tren Harian GMV & Komisi -->
+      <div class="lg:col-span-2 glass-card rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i data-lucide="line-chart" class="w-5 h-5 text-indigo-600"></i>
+              Diagram Tren Penjualan Harian (GMV & Komisi)
+            </h3>
+            <p class="text-xs text-slate-400">Perkembangan total GMV dan Komisi berdasarkan tanggal pesanan</p>
+          </div>
+        </div>
+        <div class="relative h-72 w-full">
+          <canvas id="chartTrend"></canvas>
+        </div>
+      </div>
 
-        <!-- Results Section: 10 Hook Cards -->
-        <section id="results-section" class="space-y-5">
-            <div class="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
-                <div>
-                    <h3 class="font-bold text-slate-900 text-base">10 Kalimat Hook Iklan Penjualan (Masalah & Solusi)</h3>
-                    <p class="text-xs text-slate-500">Masing-masing terdiri dari 2 paragraf, deskripsi video, dan tagar caption.</p>
-                </div>
-                <button onclick="copyAllAdsToClipboard()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition">
-                    <i class="fa-regular fa-copy mr-1"></i> Salin Semua
-                </button>
-            </div>
+      <!-- Diagram 2: Distribusi Komisi per Toko -->
+      <div class="glass-card rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i data-lucide="pie-chart" class="w-5 h-5 text-indigo-600"></i>
+              Proporsi Komisi per Toko
+            </h3>
+            <p class="text-xs text-slate-400">Kontribusi penghasilan per mitra toko</p>
+          </div>
+        </div>
+        <div class="relative h-72 w-full flex items-center justify-center">
+          <canvas id="chartToko"></canvas>
+        </div>
+      </div>
 
-            <!-- Grid Container for 10 Hook Ads -->
-            <div id="ads-container" class="space-y-5">
-                <!-- Initial empty / default guidance state -->
-                <div class="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
-                    <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-2xl mx-auto flex items-center justify-center text-2xl">
-                        <i class="fa-solid fa-photo-film"></i>
-                    </div>
-                    <h4 class="font-bold text-slate-700 text-base">Belum Ada Gambar Ditambahkan</h4>
-                    <p class="text-xs text-slate-500 max-w-md mx-auto">
-                        Silakan upload file gambar produk, gunakan tombol sampel demo, atau tekan <kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-[11px]">Ctrl+V</kbd> untuk langsung menempelkan gambar dari clipboard.
-                    </p>
-                </div>
-            </div>
-        </section>
+      <!-- Diagram 3: Top 5 Produk Berdasarkan Komisi -->
+      <div class="lg:col-span-2 glass-card rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i data-lucide="trophy" class="w-5 h-5 text-amber-500"></i>
+              Diagram Top 5 Produk Terlaris (Komisi vs GMV)
+            </h3>
+            <p class="text-xs text-slate-400">Produk yang menyumbangkan penghasilan komisi terbesar</p>
+          </div>
+        </div>
+        <div class="relative h-72 w-full">
+          <canvas id="chartTopProduk"></canvas>
+        </div>
+      </div>
 
-    </main>
+      <!-- Diagram 4: Performa Jenis Konten -->
+      <div class="glass-card rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i data-lucide="video" class="w-5 h-5 text-indigo-600"></i>
+              Performa Jenis Konten
+            </h3>
+            <p class="text-xs text-slate-400">Komisi berdasarkan media konten (Video, Live, dll.)</p>
+          </div>
+        </div>
+        <div class="relative h-72 w-full flex items-center justify-center">
+          <canvas id="chartKonten"></canvas>
+        </div>
+      </div>
 
-    <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-500">
-        <p>© 2026 Generator Hook Iklan Penjualan — Powered by Gemini 3.1 Flash AI Multimodal.</p>
-    </footer>
+    </section>
 
-    <!-- Printable Content Wrapper for DOC/PDF Export -->
-    <div id="exportable-content" class="hidden"></div>
+    <!-- TOP 5 MARKETING KIT SECTION (CAPTION, DESKRIPSI & TAGAR) -->
+    <section class="glass-card rounded-2xl p-6 shadow-sm space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+        <div>
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="sparkles" class="w-5 h-5 text-amber-500"></i>
+            Kit Marketing & Caption Konten Top 5 Produk Terlaris
+          </h3>
+          <p class="text-xs text-slate-400">Rekomendasi Deskripsi, Caption VT/Live, dan Tagar populer siap pakai untuk promosi ulang</p>
+        </div>
+        <span class="text-xs bg-amber-50 text-amber-700 font-semibold px-3 py-1 rounded-full border border-amber-200">
+          Siap Copas
+        </span>
+      </div>
 
-    <script>
-        // Global State Variables
-        let currentRawBase64 = null;
-        let currentMimeType = null;
-        let currentAdsData = [];
-        let currentProductIdentification = null;
+      <!-- Dynamic Cards Container for Top 5 Products -->
+      <div id="top5KitContainer" class="space-y-4">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
 
-        // Default Sample Demo Image (Base64 SVG Placeholder)
-        const demoSampleSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="%234f46e5"/><circle cx="300" cy="180" r="80" fill="%23ffffff" opacity="0.2"/><path d="M260 210 Q 300 130 340 210" stroke="%23ffffff" stroke-width="12" fill="none" stroke-linecap="round"/><text x="300" y="310" font-family="sans-serif" font-size="24" font-weight="bold" fill="%23ffffff" text-anchor="middle">Kaos Kaki Magnetik Terapi Warm Sock</text><text x="300" y="340" font-family="sans-serif" font-size="16" fill="%23e0e7ff" text-anchor="middle">Sampel Produk Kesehatan & Anti Pegal</text></svg>`;
+    <!-- DATA TABLE SECTION -->
+    <section class="glass-card rounded-2xl p-6 shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+        <div>
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="table" class="w-5 h-5 text-indigo-600"></i>
+            Rincian Laporan Pesanan Afiliasi
+          </h3>
+          <p class="text-xs text-slate-400">Daftar transaksi pesanan terfilter</p>
+        </div>
+        <button id="exportCsvBtn" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition shadow-sm">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Unduh CSV Terfilter</span>
+        </button>
+      </div>
 
-        window.onload = function() {
-            // Setup paste event listener on entire window
-            window.addEventListener('paste', handleGlobalPaste);
+      <div class="overflow-x-auto border border-slate-200 rounded-xl">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700 uppercase font-semibold border-b border-slate-200">
+              <th class="p-3">ID Pesanan</th>
+              <th class="p-3">Tanggal</th>
+              <th class="p-3">Toko</th>
+              <th class="p-3">Nama Produk</th>
+              <th class="p-3 text-right">Qty</th>
+              <th class="p-3 text-right">GMV</th>
+              <th class="p-3 text-right">Komisi Akhir</th>
+              <th class="p-3 text-center">Jenis Konten</th>
+              <th class="p-3 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-100 text-slate-600">
+            <!-- Table rows populated dynamically -->
+          </tbody>
+        </table>
+      </div>
 
-            // Drag & drop zone setup
-            const dropzone = document.getElementById('image-dropzone');
-            
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropzone.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropzone.classList.add('drag-active');
-                }, false);
-            });
+      <!-- Pagination -->
+      <div class="flex items-center justify-between text-xs text-slate-500 pt-2">
+        <span id="pageInfo">Halaman 1 dari 1</span>
+        <div class="flex items-center gap-2">
+          <button id="prevPageBtn" class="px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-50">Sebelumnya</button>
+          <button id="nextPageBtn" class="px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-50">Berikutnya</button>
+        </div>
+      </div>
+    </section>
 
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropzone.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropzone.classList.remove('drag-active');
-                }, false);
-            });
+  </main>
 
-            dropzone.addEventListener('drop', (e) => {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                if (files && files.length > 0) {
-                    processImageFile(files[0]);
-                }
-            });
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400">
+    <p>Dashboard Analisis Rekap Laporan Afiliasi &copy; 2026 - Dilengkapi Visualisasi Diagram Interaktif</p>
+  </footer>
 
-            dropzone.addEventListener('click', (e) => {
-                // Ignore click if button clicked inside dropzone
-                if (e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
-                    document.getElementById('image-file-input').click();
-                }
-            });
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    // Sample Initial Data (Sesuai struktur TikTok Shop Affiliate ID)
+    const SAMPLE_DATA = [
+      {
+        "ID pesanan": "585535058697487542",
+        "Tanggal pesanan": "14/08/2026 06:06:28",
+        "Nama toko": "satukeluargaid",
+        "Nama produk": "[COD] SK C1389 Kaca Spion Car Wide View Blind Spot Mirror Universal",
+        "Produk terjual": 1,
+        "GMV": "12.664",
+        "Total penghasilan akhir": "859.000",
+        "Jenis Konten": "Video",
+        "Status penyelesaian pembayaran pesanan": "Sudah dibayar"
+      },
+      {
+        "ID pesanan": "585529785915901824",
+        "Tanggal pesanan": "13/08/2026 20:04:44",
+        "Nama toko": "satukeluargaid",
+        "Nama produk": "[COD] SK C1389 Kaca Spion Car Wide View Blind Spot Mirror Universal",
+        "Produk terjual": 1,
+        "GMV": "12.664",
+        "Total penghasilan akhir": "859.000",
+        "Jenis Konten": "Video",
+        "Status penyelesaian pembayaran pesanan": "Sudah dibayar"
+      },
+      {
+        "ID pesanan": "585486331921860257",
+        "Tanggal pesanan": "11/08/2026 06:25:35",
+        "Nama toko": "Wallpaper Home",
+        "Nama produk": "[ISI 10 PCS] WALLPAPER 3D FOAM BATA WARNA MINI | 30CM X 35CM",
+        "Produk terjual": 2,
+        "GMV": "49.066",
+        "Total penghasilan akhir": "4.718",
+        "Jenis Konten": "Video",
+        "Status penyelesaian pembayaran pesanan": "Sudah dibayar"
+      },
+      {
+        "ID pesanan": "585202753125582210",
+        "Tanggal pesanan": "02/07/2026 10:15:00",
+        "Nama toko": "TECNO Indonesia Shop",
+        "Nama produk": "[5x SUPERZOOM FLASHSNAP] TECNO CAMON 50 PRO 5G 8GB+8GB*/256GB",
+        "Produk terjual": 1,
+        "GMV": "4.823.090",
+        "Total penghasilan akhir": "0.000",
+        "Jenis Konten": "Video",
+        "Status penyelesaian pembayaran pesanan": "Sudah dibayar"
+      },
+      {
+        "ID pesanan": "585093400000000000",
+        "Tanggal pesanan": "01/07/2026 14:20:00",
+        "Nama toko": "Shaquille elektrik",
+        "Nama produk": "panaled premium,lampu ekonomis tipe e27",
+        "Produk terjual": 2,
+        "GMV": "20.705",
+        "Total penghasilan akhir": "780.000",
+        "Jenis Konten": "Video",
+        "Status penyelesaian pembayaran pesanan": "Sudah dibayar"
+      },
+      {
+        "ID pesanan": "585045500000000000",
+        "Tanggal pesanan": "01/07/2026 16:45:00",
+        "Nama toko": "JuraganAcc",
+        "Nama produk": "Alat Service Penyok Mobil Car Dent Removal",
+        "Produk terjual": 1,
+        "GMV": "165.042",
+        "Total penghasilan akhir": "7.353",
+        "Jenis Konten": "Video",
+        "Status penyelesaian pembayaran pesanan": "Sudah dibayar"
+      }
+    ];
+
+    let rawData = [...SAMPLE_DATA];
+    let filteredData = [];
+    let currentTopKits = [];
+    
+    // Pagination state
+    let currentPage = 1;
+    const rowsPerPage = 5;
+
+    // Chart instances
+    let chartTrend = null;
+    let chartToko = null;
+    let chartTopProduk = null;
+    let chartKonten = null;
+
+    // Helper: Ambil Properti Kolom Secara Fleksibel (Abaikan BOM & Kapitalisasi)
+    function getProp(item, candidateKeys) {
+      if (!item || typeof item !== 'object') return undefined;
+      const itemKeys = Object.keys(item);
+      for (let key of candidateKeys) {
+        const cleanKey = key.toLowerCase().trim();
+        for (let k of itemKeys) {
+          const cleanedK = k.replace(/^\uFEFF/, '').toLowerCase().trim();
+          if (cleanedK === cleanKey) {
+            return item[k];
+          }
+        }
+      }
+      return undefined;
+    }
+
+    // Helper: Parsing Angka Format Indonesia (Titik sebagai pemisah ribuan)
+    function parseIndonesianNumber(val) {
+      if (val === null || val === undefined || val === '') return 0;
+      if (typeof val === 'number') {
+        return isNaN(val) ? 0 : val;
+      }
+      
+      let str = String(val).trim();
+      if (!str || str === 'NaN' || str === '-') return 0;
+
+      if (str.includes('.') && str.includes(',')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+      } 
+      else if (str.includes('.')) {
+        const parts = str.split('.');
+        if (parts.length > 2) {
+          str = str.replace(/\./g, '');
+        } else {
+          if (parts[1] === '000') {
+            str = parts[0];
+          } else if (parts[1].length === 3) {
+            str = str.replace(/\./g, '');
+          }
+        }
+      } 
+      else if (str.includes(',')) {
+        const parts = str.split(',');
+        if (parts[1].length === 3) {
+          str = str.replace(/,/g, '');
+        } else {
+          str = str.replace(',', '.');
+        }
+      }
+
+      const num = parseFloat(str);
+      return isNaN(num) ? 0 : num;
+    }
+
+    // Helper: Format ID Pesanan agar tidak tampil sebagai notasi ilmiah
+    function formatOrderId(val) {
+      if (val === null || val === undefined) return 'N/A';
+      let str = String(val).trim();
+      if (str.includes('e+') || str.includes('E+')) {
+        try {
+          return BigInt(Math.round(Number(val))).toString();
+        } catch(e) {
+          return str;
+        }
+      }
+      return str;
+    }
+
+    // Utility: Format Currency IDR
+    function formatIDR(value) {
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        maximumFractionDigits: 0
+      }).format(value || 0);
+    }
+
+    // Clipboard Copy Helper
+    function copyToClipboard(text, successMsg) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showStatus(successMsg || "Berhasil disalin ke clipboard!", "success");
+      } catch (err) {
+        showStatus("Gagal menyalin teks ke clipboard.", "error");
+      }
+      document.body.removeChild(textarea);
+    }
+
+    function copyKit(index, type) {
+      const item = currentTopKits[index];
+      if (!item) return;
+
+      if (type === 'tags') {
+        const text = item.tags.join(' ');
+        copyToClipboard(text, `Tagar Produk #${index + 1} berhasil disalin!`);
+      } else if (type === 'all') {
+        const text = `${item.caption}\n\nTagar:\n${item.tags.join(' ')}`;
+        copyToClipboard(text, `Caption & Tagar Produk #${index + 1} berhasil disalin!`);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      setupEventListeners();
+      processData(rawData);
+    });
+
+    function showStatus(message, type = 'info') {
+      const banner = document.getElementById('statusBanner');
+      const text = document.getElementById('statusText');
+
+      banner.className = `p-4 rounded-xl border flex items-center justify-between text-sm transition-all ${
+        type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+        type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' :
+        'bg-indigo-50 border-indigo-200 text-indigo-800'
+      }`;
+
+      text.innerText = message;
+      banner.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function processData(data) {
+      if (!Array.isArray(data)) return;
+
+      rawData = data.map((item, index) => {
+        const rawId = getProp(item, ['ID pesanan', 'id pesanan', 'order id', 'id']);
+        const id = formatOrderId(rawId);
+
+        const toko = String(getProp(item, ['Nama toko', 'nama toko', 'toko', 'shop name']) || 'Lainnya').trim();
+        const produk = String(getProp(item, ['Nama produk', 'nama produk', 'produk', 'product name']) || 'Tanpa Nama Produk').trim();
+
+        const rawQty = getProp(item, ['Produk terjual', 'produk terjual', 'qty', 'jumlah']);
+        const qty = Math.max(1, Math.round(parseIndonesianNumber(rawQty)));
+
+        const rawGMV = getProp(item, ['GMV', 'gmv', 'total gmv', 'penjualan kotor']);
+        const gmv = parseIndonesianNumber(rawGMV);
+
+        let rawKomisi = getProp(item, ['Total penghasilan akhir', 'total penghasilan akhir', 'komisi akhir']);
+        let komisi = parseIndonesianNumber(rawKomisi);
+        
+        if (!komisi) {
+          const komisiStandar = parseIndonesianNumber(getProp(item, ['Komisi standar', 'komisi standar']));
+          const komisiIklan = parseIndonesianNumber(getProp(item, ['Komisi Iklan Toko', 'komisi iklan toko']));
+          const perkiraanKomisi = parseIndonesianNumber(getProp(item, ['Perkiraan komisi standar', 'perkiraan komisi standar']));
+          komisi = komisiStandar || komisiIklan || perkiraanKomisi || 0;
+        }
+
+        const konten = String(getProp(item, ['Jenis Konten', 'jenis konten', 'konten', 'media']) || 'Umum').trim();
+        const status = String(getProp(item, ['Status penyelesaian pembayaran pesanan', 'status penyelesaian pembayaran pesanan', 'status']) || 'Sudah dibayar').trim();
+
+        let dateStr = String(getProp(item, ['Tanggal pesanan', 'tanggal pesanan', 'tanggal', 'order date']) || '').trim();
+        let cleanDate = 'N/A';
+        if (dateStr) {
+          const dateOnly = dateStr.split(' ')[0];
+          const parts = dateOnly.split('/');
+          if (parts.length === 3) {
+            cleanDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          } else {
+            cleanDate = dateOnly;
+          }
+        }
+
+        return {
+          id: id || `ORD-${index+1}`,
+          toko: toko || 'Lainnya',
+          produk: produk || 'Tanpa Nama Produk',
+          qty: isNaN(qty) ? 1 : qty,
+          gmv: isNaN(gmv) ? 0 : gmv,
+          komisi: isNaN(komisi) ? 0 : komisi,
+          konten: konten || 'Umum',
+          status: status || 'Sudah dibayar',
+          tanggal: cleanDate,
+          rawTanggal: dateStr || cleanDate
         };
+      });
 
-        function triggerFileInput(e) {
-            if (e) e.stopPropagation();
-            document.getElementById('image-file-input').click();
+      populateFilterOptions();
+      applyFilters();
+    }
+
+    function populateFilterOptions() {
+      const tokoSet = new Set(['ALL']);
+      const kontenSet = new Set(['ALL']);
+      const statusSet = new Set(['ALL']);
+
+      rawData.forEach(d => {
+        if (d.toko) tokoSet.add(d.toko);
+        if (d.konten) kontenSet.add(d.konten);
+        if (d.status) statusSet.add(d.status);
+      });
+
+      fillSelect('filterToko', Array.from(tokoSet));
+      fillSelect('filterKonten', Array.from(kontenSet));
+      fillSelect('filterStatus', Array.from(statusSet));
+    }
+
+    function fillSelect(elementId, options) {
+      const select = document.getElementById(elementId);
+      const currentVal = select.value;
+      select.innerHTML = '';
+      options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt;
+        option.textContent = opt === 'ALL' ? (elementId === 'filterToko' ? 'Semua Toko' : elementId === 'filterKonten' ? 'Semua Konten' : 'Semua Status') : opt;
+        select.appendChild(option);
+      });
+      if (options.includes(currentVal)) select.value = currentVal;
+    }
+
+    function applyFilters() {
+      const toko = document.getElementById('filterToko').value;
+      const konten = document.getElementById('filterKonten').value;
+      const status = document.getElementById('filterStatus').value;
+      const search = document.getElementById('filterSearch').value.toLowerCase().trim();
+
+      filteredData = rawData.filter(d => {
+        const matchToko = toko === 'ALL' || d.toko === toko;
+        const matchKonten = konten === 'ALL' || d.konten === konten;
+        const matchStatus = status === 'ALL' || d.status === status;
+        const matchSearch = !search || d.produk.toLowerCase().includes(search) || d.id.toLowerCase().includes(search);
+        return matchToko && matchKonten && matchStatus && matchSearch;
+      });
+
+      currentPage = 1;
+      updateKPIs();
+      renderCharts();
+      renderTable();
+    }
+
+    function updateKPIs() {
+      const totalGMV = filteredData.reduce((acc, d) => acc + d.gmv, 0);
+      const totalKomisi = filteredData.reduce((acc, d) => acc + d.komisi, 0);
+      const totalQty = filteredData.reduce((acc, d) => acc + d.qty, 0);
+      const rate = totalGMV > 0 ? ((totalKomisi / totalGMV) * 100).toFixed(1) : '0';
+
+      document.getElementById('kpiGMV').innerText = formatIDR(totalGMV);
+      document.getElementById('kpiKomisi').innerText = formatIDR(totalKomisi);
+      document.getElementById('kpiQty').innerText = `${totalQty.toLocaleString('id-ID')} pcs`;
+      document.getElementById('kpiRate').innerText = `${rate}%`;
+
+      document.getElementById('totalRecordsBadge').innerText = `${filteredData.length} Pesanan Terfilter`;
+    }
+
+    function generateProductContentKit(productName) {
+      const nameLower = productName.toLowerCase();
+      
+      let deskripsi = "";
+      let caption = "";
+      let tags = [];
+
+      if (nameLower.includes('spion') || nameLower.includes('mirror') || nameLower.includes('blind spot')) {
+        deskripsi = "Kaca spion mobil tambahan sudut pandang luas (wide view). Membantu pengemudi melihat area blind spot secara jernih untuk meminimalisir risiko benturan.";
+        caption = "Driver wajib pasang ini! Kaca spion blind spot biar parkir & pindah jalur makin aman. Hasil cermin jernih, tempel langsung pas! Klik keranjang kuning sekarang! 🚗✨";
+        tags = ["#spionmobil", "#blindspotmirror", "#aksesorismobil", "#otomotifindonesia", "#racuntiktok", "#keranjangkuning", "#spillracun"];
+      } else if (nameLower.includes('wallpaper') || nameLower.includes('foam') || nameLower.includes('wall')) {
+        deskripsi = "Stiker wallpaper dinding 3D foam estetik bermotif tebal. Sudah dilengkapi lem ekstra perekat, waterproof tahan air & anti noda, mudah dipasang sendiri.";
+        caption = "Dekorasi kamar auto estetik cuma modal wallpaper 3D foam ini! 🏠 Tebal, anti air, gampang dipasang tanpa tukang. Yuk checkout di keranjang kuning sebelum kehabisan! 😍🔥";
+        tags = ["#wallpaper3d", "#wallfoam", "#dekorasirumah", "#kamarestetik", "#homeinspo", "#racunshopee", "#affiliatetiktok"];
+      } else if (nameLower.includes('lampu') || nameLower.includes('led') || nameLower.includes('panaled')) {
+        deskripsi = "Lampu LED hemat listrik kelas premium dengan intensitas cahaya terang maksimal. Tahan lama dan ramah energi untuk penerangan rumah & tempat usaha.";
+        caption = "Solusi rumah terang benderang tapi tagihan listrik tetap hemat! 💡 Lampu nyala super terang, awet tahan lama. Langsung amankan stoknya di keranjang kuning ya! ⚡👍";
+        tags = ["#lampuled", "#hematlistrik", "#peralatanrumah", "#elektronikmurah", "#racuntiktok", "#spillbarangunik"];
+      } else if (nameLower.includes('camon') || nameLower.includes('tecno') || nameLower.includes('phone') || nameLower.includes('hp')) {
+        deskripsi = "Smartphone performa tinggi dengan kamera resolusi besar, layar responsif, dan baterai tahan seharian. Sangat mendukung kebutuhan gaming & pembuatan konten.";
+        caption = "HP idaman para konten kreator! 📱 Kamera super jernih, baterai awet seharian, performa kencang anti lag. Spek dewa harga bersahabat! Amankan promo di keranjang sekarang! 💥🚀";
+        tags = ["#hpbarumurah", "#gadgetracun", "#reviewhp", "#techindonesia", "#racuntiktok", "#fyp"];
+      } else if (nameLower.includes('dent') || nameLower.includes('penyok') || nameLower.includes('alat service')) {
+        deskripsi = "Alat perbaikan bodi mobil penyok (dent remover) tanpa merusak cat bawaan. Solusi praktis dan hemat pengeluaran bengkel untuk perbaikan sendiri di rumah.";
+        caption = "Mobil penyok ga usah ke bengkel mahal lagi! 🚗 Pakai alat penyedot penyok ini praktis banget, bodi mobil mulus kembali dalam sekejap. Klik keranjang kuning yuk! 🛠️💪";
+        tags = ["#otomotif", "#perbaikanmobil", "#alatotomotif", "#diycar", "#racunotomotif", "#keranjangkuning"];
+      } else if (nameLower.includes('celana') || nameLower.includes('training') || nameLower.includes('baju')) {
+        deskripsi = "Pakaian olahraga & casual berbahan adem, lembut, serta elastis. Desain sporty modern sangat nyaman dipakai berolahraga maupun bersantai harian.";
+        caption = "Celana training paling nyaman & adem dipakai seharian! 🏃‍♂️ Bahan tebal fleksibel, cocok buat olahraga atau hangout santai. Buruan checkout sebelum kehabisan size! 👟🔥";
+        tags = ["#celanatraining", "#outfitolahraga", "#fashionpria", "#fashionwanita", "#racunfashion", "#fyp"];
+      } else {
+        const cleanTitle = productName.length > 50 ? productName.substring(0, 50) + '...' : productName;
+        deskripsi = `${cleanTitle} merupakan produk pilihan terfavorit dengan tingkat kepuasan tinggi. Bahan berkualitas dan sangat direkomendasikan untuk penggunaan harian.`;
+        caption = `Rekomendasi terbaik hari ini! ${cleanTitle} terbukti paling laris dan banyak dicari. 🛍️ Kualitas oke banget, promo terbatas! Klik keranjang kuning sekarang juga! ✨🔥`;
+        tags = ["#rekomendasiproduk", "#racuntiktok", "#spillracun", "#produkpopular", "#keranjangkuning", "#affiliatetiktok", "#fypindonesia"];
+      }
+
+      return { deskripsi, caption, tags };
+    }
+
+    function renderContentKit(top5Products) {
+      const container = document.getElementById('top5KitContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (!top5Products || top5Products.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center text-slate-400 bg-white rounded-xl border border-slate-200 text-xs">
+            Tidak ada data produk terlaris untuk membuat kit marketing.
+          </div>
+        `;
+        return;
+      }
+
+      currentTopKits = top5Products.map(([productName, stats]) => {
+        const kit = generateProductContentKit(productName);
+        return { productName, stats, ...kit };
+      });
+
+      const rankColors = [
+        'bg-amber-500 text-white',
+        'bg-slate-500 text-white',
+        'bg-amber-700 text-white',
+        'bg-indigo-600 text-white',
+        'bg-indigo-500 text-white'
+      ];
+
+      currentTopKits.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-2xl p-5 shadow-sm space-y-4 border border-slate-200 hover:shadow-md transition';
+
+        card.innerHTML = `
+          <!-- Header Card Produk -->
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div class="flex items-start gap-3">
+              <span class="px-2.5 py-1 rounded-lg font-bold text-xs ${rankColors[index] || 'bg-slate-700 text-white'} flex-shrink-0">
+                #${index + 1} Top Seller
+              </span>
+              <div>
+                <h4 class="font-bold text-slate-800 text-sm leading-snug">${item.productName}</h4>
+                <p class="text-xs text-slate-400 mt-0.5">Toko Mitra: <strong class="text-slate-600">${item.stats.toko}</strong></p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+              <span class="bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full border border-emerald-100">
+                GMV: ${formatIDR(item.stats.gmv)}
+              </span>
+              <span class="bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full border border-indigo-100">
+                Komisi: ${formatIDR(item.stats.komisi)}
+              </span>
+              <span class="bg-slate-100 text-slate-700 font-medium px-2 py-1 rounded-full">
+                ${item.stats.qty} pcs terjual
+              </span>
+            </div>
+          </div>
+
+          <!-- Grid Konten -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            
+            <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-200/70 flex flex-col justify-between space-y-2">
+              <div>
+                <div class="flex items-center gap-1.5 font-semibold text-slate-700 mb-1">
+                  <i data-lucide="file-text" class="w-4 h-4 text-indigo-600"></i>
+                  <span>Deskripsi Singkat (USP)</span>
+                </div>
+                <p class="text-slate-600 leading-relaxed">${item.deskripsi}</p>
+              </div>
+            </div>
+
+            <div class="bg-indigo-50/50 rounded-xl p-3.5 border border-indigo-100 flex flex-col justify-between space-y-2">
+              <div>
+                <div class="flex items-center gap-1.5 font-semibold text-indigo-900 mb-1">
+                  <i data-lucide="sparkles" class="w-4 h-4 text-indigo-600"></i>
+                  <span>Caption Promosi (VT / Live)</span>
+                </div>
+                <p class="text-slate-700 leading-relaxed italic">"${item.caption}"</p>
+              </div>
+            </div>
+
+            <div class="bg-purple-50/50 rounded-xl p-3.5 border border-purple-100 flex flex-col justify-between space-y-2">
+              <div>
+                <div class="flex items-center gap-1.5 font-semibold text-purple-900 mb-1">
+                  <i data-lucide="hash" class="w-4 h-4 text-purple-600"></i>
+                  <span>Tagar Populer (Hashtags)</span>
+                </div>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  ${item.tags.map(tag => `<span class="bg-white text-purple-700 text-[11px] px-2 py-0.5 rounded border border-purple-200 font-medium">${tag}</span>`).join('')}
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-100 text-xs">
+            <button onclick="copyKit(${index}, 'tags')" class="flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-lg transition font-medium shadow-xs">
+              <i data-lucide="hash" class="w-3.5 h-3.5 text-purple-600"></i>
+              <span>Salin Tagar Saja</span>
+            </button>
+            <button onclick="copyKit(${index}, 'all')" class="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg transition font-medium shadow-sm">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span>Salin Caption & Tagar</span>
+            </button>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    function renderCharts() {
+      // 1. Diagram Tren Harian
+      const dateMap = {};
+      filteredData.forEach(d => {
+        if (!dateMap[d.tanggal]) {
+          dateMap[d.tanggal] = { gmv: 0, komisi: 0 };
         }
+        dateMap[d.tanggal].gmv += d.gmv;
+        dateMap[d.tanggal].komisi += d.komisi;
+      });
 
-        function handleFileSelect(e) {
-            const file = e.target.files[0];
-            if (file) {
-                processImageFile(file);
+      const sortedDates = Object.keys(dateMap).sort();
+      const labelsTrend = sortedDates;
+      const gmvTrend = sortedDates.map(date => dateMap[date].gmv);
+      const komisiTrend = sortedDates.map(date => dateMap[date].komisi);
+
+      if (chartTrend) chartTrend.destroy();
+      chartTrend = new Chart(document.getElementById('chartTrend'), {
+        type: 'line',
+        data: {
+          labels: labelsTrend.length ? labelsTrend : ['Tidak ada data'],
+          datasets: [
+            {
+              label: 'GMV Penjualan',
+              data: gmvTrend,
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: 'Total Komisi',
+              data: komisiTrend,
+              borderColor: '#6366f1',
+              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+              fill: true,
+              tension: 0.3
             }
-        }
-
-        // Handle Paste Image Event (Ctrl+V)
-        function handleGlobalPaste(e) {
-            const items = (e.clipboardData || e.originalEvent.clipboardData)?.items;
-            if (!items) return;
-
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf('image') !== -1) {
-                    const file = items[i].getAsFile();
-                    processImageFile(file);
-                    showToast("Gambar dari Clipboard berhasil di-paste!");
-                    break;
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: ${formatIDR(context.parsed.y)}`;
                 }
+              }
             }
-        }
-
-        function processImageFile(file) {
-            if (!file || !file.type.startsWith('image/')) {
-                showToast("Mohon pilih file gambar yang valid (PNG, JPG, WEBP)!", true);
-                return;
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: value => 'Rp ' + (value >= 1000000 ? (value/1000000).toFixed(1) + 'M' : value >= 1000 ? (value/1000).toFixed(0) + 'k' : value)
+              }
             }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const fullBase64 = e.target.result;
-                const parts = fullBase64.split(',');
-                currentMimeType = file.type || parts[0].match(/:(.*?);/)[1];
-                currentRawBase64 = parts[1];
-
-                // Render Preview
-                document.getElementById('preview-img').src = fullBase64;
-                document.getElementById('preview-file-name').innerText = file.name || "Gambar Clipboard";
-                document.getElementById('upload-placeholder').classList.add('hidden');
-                document.getElementById('image-preview-container').classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
+          }
         }
+      });
 
-        function removeImage(e) {
-            if (e) e.stopPropagation();
-            currentRawBase64 = null;
-            currentMimeType = null;
-            document.getElementById('image-file-input').value = '';
-            document.getElementById('preview-img').src = '';
-            document.getElementById('upload-placeholder').classList.remove('hidden');
-            document.getElementById('image-preview-container').classList.add('hidden');
-            document.getElementById('product-info-banner').classList.add('hidden');
-            showToast("Gambar telah dihapus.");
-        }
+      // 2. Diagram Proporsi Komisi per Toko
+      const tokoMap = {};
+      filteredData.forEach(d => {
+        tokoMap[d.toko] = (tokoMap[d.toko] || 0) + d.komisi;
+      });
 
-        function generateSampleDemoImage() {
-            // Convert SVG string to base64
-            const svgData = demoSampleSvg;
-            currentMimeType = "image/svg+xml";
-            currentRawBase64 = btoa(unescape(encodeURIComponent(svgData)));
-
-            document.getElementById('preview-img').src = svgData;
-            document.getElementById('preview-file-name').innerText = "Sampel_Kaos_Kaki_Terapi.svg";
-            document.getElementById('upload-placeholder').classList.add('hidden');
-            document.getElementById('image-preview-container').classList.remove('hidden');
-            showToast("Gambar sampel demo dimuat. Klik tombol AI!");
-        }
-
-        async function processImageWithGemini() {
-            if (!currentRawBase64) {
-                showToast("Upload atau Paste gambar terlebih dahulu!", true);
-                return;
-            }
-
-            openAiModal();
-            updateAiModal(20, "Menganalisis Gambar Produk...", "Gemini 3.1 Flash membaca bentuk fisik & visual produk...");
-
-            const tone = document.getElementById('ai-tone-select').value;
-
-            const systemPrompt = `Anda adalah pakar strategi iklan video viral TikTok Shop / Instagram Reels / YouTube Shorts dan copywriter e-commerce papan atas.
-Tugas Anda:
-1. Menganalisis gambar produk yang diunggah secara visual (identifikasi nama produk, kategori, dan 3-4 fitur utama).
-2. Menyusun tepat 10 naskah hook iklan penjualan video yang fokus pada MASALAH (Problem) & SOLUSI (Solution).
-
-ATURAN STRUKTUR SETIAP HAKIKAT AD (IKLAN):
-- Terdiri dari TEPAT 2 PARAGRAF LENGKAP:
-  * Paragraf 1: Hook penarik perhatian emosional & Penjabaran MASALAH (Problem) riil yang sering dialami pembeli.
-  * Paragraf 2: Penjelasan SOLUSI (Solution) menggunakan keunggulan produk dari gambar & Call to Action (CTA) ke keranjang/checkout.
-- Sertakan 'videoDescription': Deskripsi/caption postingan video beserta arahan visual adegan video pendek.
-- Sertakan 'hashtags': 6-8 tagar populer & relevan di Indonesia (contoh: #racuntiktok #fyp #solusipegal dll).
-
-Gaya Bahasa: ${tone} (Bahasa Indonesia gaul/kasual e-commerce yang sangat persuasif, komunikatif, alami, dan menjual).`;
-
-            const userPrompt = "Analisislah gambar produk ini dan buatkan 10 naskah hook iklan penjualan 2 paragraf (Masalah + Solusi), deskripsi video, serta tagar caption secara terstruktur.";
-
-            // Payload structure for Gemini API
-            const payload = {
-                contents: [{
-                    role: "user",
-                    parts: [
-                        { text: userPrompt },
-                        {
-                            inlineData: {
-                                mimeType: currentMimeType.includes('svg') ? 'image/png' : currentMimeType,
-                                data: currentRawBase64
-                            }
-                        }
-                    ]
-                }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            "productIdentification": {
-                                "type": "OBJECT",
-                                "properties": {
-                                    "productName": { "type": "STRING" },
-                                    "category": { "type": "STRING" },
-                                    "keyFeatures": {
-                                        "type": "ARRAY",
-                                        "items": { "type": "STRING" }
-                                    }
-                                },
-                                "required": ["productName", "category", "keyFeatures"]
-                            },
-                            "ads": {
-                                "type": "ARRAY",
-                                "items": {
-                                    "type": "OBJECT",
-                                    "properties": {
-                                        "id": { "type": "INTEGER" },
-                                        "title": { "type": "STRING" },
-                                        "hookAngle": { "type": "STRING" },
-                                        "paragraph1": { "type": "STRING" },
-                                        "paragraph2": { "type": "STRING" },
-                                        "videoDescription": { "type": "STRING" },
-                                        "hashtags": { "type": "STRING" }
-                                    },
-                                    "required": ["id", "title", "hookAngle", "paragraph1", "paragraph2", "videoDescription", "hashtags"]
-                                }
-                            }
-                        },
-                        "required": ["productIdentification", "ads"]
-                    }
+      if (chartToko) chartToko.destroy();
+      chartToko = new Chart(document.getElementById('chartToko'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(tokoMap),
+          datasets: [{
+            data: Object.values(tokoMap),
+            backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.label}: ${formatIDR(context.parsed)}`;
                 }
-            };
+              }
+            }
+          }
+        }
+      });
 
-            const apiKey = ""; // Canvas runtime auto injects API Key
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+      // 3. Diagram Top 5 Produk Terlaris
+      const productMap = {};
+      filteredData.forEach(d => {
+        if (!productMap[d.produk]) {
+          productMap[d.produk] = { komisi: 0, gmv: 0, qty: 0, toko: d.toko };
+        }
+        productMap[d.produk].komisi += d.komisi;
+        productMap[d.produk].gmv += d.gmv;
+        productMap[d.produk].qty += d.qty;
+      });
 
-            let retries = 0;
-            const maxRetries = 3;
-            let delay = 1000;
+      const top5Products = Object.entries(productMap)
+        .sort((a, b) => b[1].komisi - a[1].komisi)
+        .slice(0, 5);
 
-            while (retries <= maxRetries) {
-                try {
-                    updateAiModal(50 + (retries * 10), "Menyusun 10 Kalimat Hook Iklan...", "Menggabungkan hook emosional masalah dan solusi produk...");
+      const labelsProducts = top5Products.map(p => p[0].length > 25 ? p[0].substring(0, 25) + '...' : p[0]);
+      const komisiProducts = top5Products.map(p => p[1].komisi);
+      const gmvProducts = top5Products.map(p => p[1].gmv);
 
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP Error status: ${response.status}`);
-                    }
-
-                    const result = await response.json();
-                    const candidate = result.candidates?.[0];
-
-                    if (candidate && candidate.content?.parts?.[0]?.text) {
-                        const jsonText = candidate.content.parts[0].text;
-                        const parsedData = JSON.parse(jsonText);
-
-                        updateAiModal(90, "Memuat Tampilan Dashboard...", "Menyusun hasil 10 naskah iklan...");
-
-                        currentProductIdentification = parsedData.productIdentification;
-                        currentAdsData = parsedData.ads;
-
-                        renderResults();
-
-                        updateAiModal(100, "Selesai!", "10 Hook iklan berhasil dibuat.");
-                        setTimeout(() => {
-                            closeAiModal();
-                            showToast("10 Kalimat Hook Iklan berhasil dibuat oleh Gemini AI!");
-                        }, 400);
-
-                        return;
-                    } else {
-                        throw new Error("Respon Gemini AI tidak valid.");
-                    }
-                } catch (err) {
-                    console.warn(`Attempt ${retries + 1} failed:`, err);
-                    retries++;
-                    if (retries > maxRetries) {
-                        closeAiModal();
-                        showToast("Gagal memproses gambar dengan Gemini AI. Coba lagi!", true);
-                        return;
-                    }
-                    await new Promise(res => setTimeout(res, delay));
-                    delay *= 2;
+      if (chartTopProduk) chartTopProduk.destroy();
+      chartTopProduk = new Chart(document.getElementById('chartTopProduk'), {
+        type: 'bar',
+        data: {
+          labels: labelsProducts,
+          datasets: [
+            {
+              label: 'Total Komisi',
+              data: komisiProducts,
+              backgroundColor: '#6366f1'
+            },
+            {
+              label: 'Total GMV',
+              data: gmvProducts,
+              backgroundColor: '#cbd5e1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: ${formatIDR(context.parsed.x)}`;
                 }
+              }
             }
-        }
-
-        function openAiModal() {
-            document.getElementById('ai-modal').classList.remove('hidden');
-        }
-
-        function closeAiModal() {
-            document.getElementById('ai-modal').classList.add('hidden');
-        }
-
-        function updateAiModal(progressPercent, stepTitle, stepDesc) {
-            document.getElementById('ai-progress-bar').style.width = `${progressPercent}%`;
-            document.getElementById('ai-status-step').innerText = stepTitle;
-            document.getElementById('ai-status-desc').innerText = stepDesc;
-        }
-
-        function renderResults() {
-            // 1. Render Product Info Banner
-            if (currentProductIdentification) {
-                const banner = document.getElementById('product-info-banner');
-                banner.classList.remove('hidden');
-                document.getElementById('detected-product-name').innerText = currentProductIdentification.productName || "Produk Terdeteksi";
-                document.getElementById('detected-category').innerText = `Kategori: ${currentProductIdentification.category || "General"}`;
-
-                const featuresContainer = document.getElementById('detected-features-list');
-                featuresContainer.innerHTML = '';
-                (currentProductIdentification.keyFeatures || []).forEach(feat => {
-                    const badge = document.createElement('span');
-                    badge.className = "bg-white/10 border border-white/20 px-2.5 py-1 rounded-lg flex items-center gap-1.5";
-                    badge.innerHTML = `<i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> ${feat}`;
-                    featuresContainer.appendChild(badge);
-                });
+          },
+          scales: {
+            x: {
+              ticks: {
+                callback: value => 'Rp ' + (value >= 1000000 ? (value/1000000).toFixed(1) + 'M' : value >= 1000 ? (value/1000).toFixed(0) + 'k' : value)
+              }
             }
-
-            // 2. Render 10 Hook Ads
-            const container = document.getElementById('ads-container');
-            container.innerHTML = '';
-
-            if (!currentAdsData || currentAdsData.length === 0) {
-                container.innerHTML = `<div class="p-8 text-center text-slate-500">Gagal memuat iklan.</div>`;
-                return;
-            }
-
-            currentAdsData.forEach((ad, index) => {
-                const card = document.createElement('div');
-                card.className = "bg-white rounded-3xl p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition space-y-4";
-
-                card.innerHTML = `
-                    <!-- Card Header -->
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-7 h-7 bg-indigo-600 text-white font-extrabold text-xs rounded-xl flex items-center justify-center">#${index + 1}</span>
-                            <div>
-                                <h4 class="font-bold text-slate-900 text-base">${ad.title || `Hook Iklan Penjualan #${index + 1}`}</h4>
-                                <span class="text-xs text-indigo-600 font-semibold">${ad.hookAngle || 'Problem-Solving Angle'}</span>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-2 self-start sm:self-center">
-                            <button onclick="speakAdScript(${index})" class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-semibold transition border border-emerald-200" title="Dengarkan Suara TTS">
-                                <i class="fa-solid fa-volume-high"></i>
-                                <span>Dengar Suara</span>
-                            </button>
-                            <button onclick="copySingleAdText(${index})" class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition border border-indigo-200">
-                                <i class="fa-regular fa-copy"></i>
-                                <span>Salin Naskah</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 2 Paragraph Script Content -->
-                    <div class="space-y-3 text-xs sm:text-sm leading-relaxed">
-                        <!-- Paragraph 1: Problem -->
-                        <div class="bg-rose-50/60 p-4 rounded-2xl border border-rose-100 text-slate-800">
-                            <div class="flex items-center gap-1.5 text-xs font-bold text-rose-700 mb-1.5 uppercase tracking-wider">
-                                <i class="fa-solid fa-circle-exclamation text-rose-500"></i> Paragraf 1 — Hook & Masalah (Problem):
-                            </div>
-                            <p>${ad.paragraph1}</p>
-                        </div>
-
-                        <!-- Paragraph 2: Solution & CTA -->
-                        <div class="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-100 text-slate-800">
-                            <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 mb-1.5 uppercase tracking-wider">
-                                <i class="fa-solid fa-circle-check text-emerald-500"></i> Paragraf 2 — Solusi & Call to Action (CTA):
-                            </div>
-                            <p>${ad.paragraph2}</p>
-                        </div>
-                    </div>
-
-                    <!-- Video Description & Hashtags Footer -->
-                    <div class="pt-2 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                        <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
-                            <span class="font-bold text-slate-800 block mb-1">
-                                <i class="fa-solid fa-video text-indigo-500 mr-1"></i> Deskripsi / Konsep Video:
-                            </span>
-                            <p class="text-slate-600 leading-relaxed">${ad.videoDescription}</p>
-                        </div>
-                        <div class="bg-indigo-50/50 p-3.5 rounded-2xl border border-indigo-100/80 flex flex-col justify-between">
-                            <div>
-                                <span class="font-bold text-indigo-900 block mb-1">
-                                    <i class="fa-solid fa-hashtag text-indigo-500 mr-1"></i> Tagar (Hashtags) Konten:
-                                </span>
-                                <p class="text-indigo-700 font-semibold break-all">${ad.hashtags}</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                container.appendChild(card);
-            });
+          }
         }
+      });
 
-        function speakAdScript(index) {
-            const ad = currentAdsData[index];
-            if (!ad) return;
+      // Render Kit Marketing untuk Top 5 Produk
+      renderContentKit(top5Products);
 
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const text = `${ad.paragraph1} ... ${ad.paragraph2}`;
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'id-ID';
-                utterance.rate = 1.0;
-                window.speechSynthesis.speak(utterance);
-                showToast("Memutar audio naskah iklan...");
-            } else {
-                showToast("Browser tidak mendukung Text-to-Speech.", true);
+      // 4. Diagram Performa Jenis Konten
+      const kontenMap = {};
+      filteredData.forEach(d => {
+        kontenMap[d.konten] = (kontenMap[d.konten] || 0) + d.komisi;
+      });
+
+      if (chartKonten) chartKonten.destroy();
+      chartKonten = new Chart(document.getElementById('chartKonten'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(kontenMap),
+          datasets: [{
+            label: 'Komisi (IDR)',
+            data: Object.values(kontenMap),
+            backgroundColor: ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `Komisi: ${formatIDR(context.parsed.y)}`;
+                }
+              }
             }
-        }
-
-        function copySingleAdText(index) {
-            const ad = currentAdsData[index];
-            if (!ad) return;
-
-            const fullText = `${ad.title || `Hook Iklan #${index+1}`}\nAngle: ${ad.hookAngle}\n\n[PARAGRAF 1 - MASALAH]\n${ad.paragraph1}\n\n[PARAGRAF 2 - SOLUSI & CTA]\n${ad.paragraph2}\n\n[DESKRIPSI VIDEO]\n${ad.videoDescription}\n\n[TAGAR]\n${ad.hashtags}`;
-
-            copyToClipboard(fullText);
-            showToast(`Naskah #${index+1} berhasil disalin!`);
-        }
-
-        function copyAllAdsToClipboard() {
-            if (!currentAdsData || currentAdsData.length === 0) {
-                showToast("Belum ada naskah iklan untuk disalin!", true);
-                return;
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: value => 'Rp ' + (value >= 1000000 ? (value/1000000).toFixed(1) + 'M' : value >= 1000 ? (value/1000).toFixed(0) + 'k' : value)
+              }
             }
-
-            let allText = `=== 10 KALIMAT HOOK IKLAN PENJUALAN (GEMINI AI) ===\n`;
-            if (currentProductIdentification) {
-                allText += `Produk: ${currentProductIdentification.productName}\nKategori: ${currentProductIdentification.category}\n\n`;
-            }
-
-            currentAdsData.forEach((ad, i) => {
-                allText += `--------------------------------------------------\n`;
-                allText += `NO. ${i+1}: ${ad.title || `Hook #${i+1}`} (${ad.hookAngle})\n\n`;
-                allText += `PARAGRAF 1 (MASALAH):\n${ad.paragraph1}\n\n`;
-                allText += `PARAGRAF 2 (SOLUSI & CTA):\n${ad.paragraph2}\n\n`;
-                allText += `DESKRIPSI VIDEO:\n${ad.videoDescription}\n\n`;
-                allText += `TAGAR:\n${ad.hashtags}\n\n`;
-            });
-
-            copyToClipboard(allText);
-            showToast("Semua 10 naskah iklan berhasil disalin ke clipboard!");
+          }
         }
+      });
+    }
 
-        function copyToClipboard(text) {
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(text);
-            } else {
-                const dummy = document.createElement("textarea");
-                document.body.appendChild(dummy);
-                dummy.value = text;
-                dummy.select();
-                document.execCommand("copy");
-                document.body.removeChild(dummy);
-            }
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+
+      if (filteredData.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" class="p-6 text-center text-slate-400">
+              Tidak ada data pesanan yang sesuai dengan filter.
+            </td>
+          </tr>
+        `;
+        document.getElementById('pageInfo').innerText = 'Halaman 0 dari 0';
+        document.getElementById('prevPageBtn').disabled = true;
+        document.getElementById('nextPageBtn').disabled = true;
+        return;
+      }
+
+      const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const startIndex = (currentPage - 1) * rowsPerPage;
+      const endIndex = Math.min(startIndex + rowsPerPage, filteredData.length);
+      const pageData = filteredData.slice(startIndex, endIndex);
+
+      pageData.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition';
+
+        const statusBadge = item.status.toLowerCase().includes('sudah') ? 
+          `<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-semibold">Sudah Dibayar</span>` :
+          `<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-semibold">${item.status}</span>`;
+
+        tr.innerHTML = `
+          <td class="p-3 font-mono font-medium text-slate-700">${item.id}</td>
+          <td class="p-3 whitespace-nowrap">${item.rawTanggal || item.tanggal}</td>
+          <td class="p-3 font-semibold text-slate-700">${item.toko}</td>
+          <td class="p-3 max-w-xs truncate" title="${item.produk}">${item.produk}</td>
+          <td class="p-3 text-right font-medium">${item.qty}</td>
+          <td class="p-3 text-right font-medium text-slate-700">${formatIDR(item.gmv)}</td>
+          <td class="p-3 text-right font-bold text-indigo-600">${formatIDR(item.komisi)}</td>
+          <td class="p-3 text-center"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px]">${item.konten}</span></td>
+          <td class="p-3 text-center">${statusBadge}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('pageInfo').innerText = `Halaman ${currentPage} dari ${totalPages} (${filteredData.length} Data)`;
+      document.getElementById('prevPageBtn').disabled = currentPage === 1;
+      document.getElementById('nextPageBtn').disabled = currentPage === totalPages;
+    }
+
+    function handleFileUpload(file) {
+      if (!file) return;
+
+      document.getElementById('uploadBtnText').innerText = `Membaca ${file.name.substring(0, 12)}...`;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: false });
+          
+          if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+            throw new Error("File tidak memiliki sheet data.");
+          }
+
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const parsedJson = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+          if (parsedJson && parsedJson.length > 0) {
+            processData(parsedJson);
+            showStatus(`Berhasil memuat ${parsedJson.length} baris data dari file "${file.name}"`, "success");
+            document.getElementById('uploadBtnText').innerText = "Ganti File Excel/CSV";
+          } else {
+            showStatus("File kosong atau tidak berisi data yang valid.", "error");
+            document.getElementById('uploadBtnText').innerText = "Unggah File Excel/CSV";
+          }
+        } catch (err) {
+          console.error(err);
+          showStatus("Gagal membaca file Excel/CSV: " + err.message, "error");
+          document.getElementById('uploadBtnText').innerText = "Unggah File Excel/CSV";
         }
+      };
+      reader.onerror = function() {
+        showStatus("Gagal membuka file. Pastikan file tidak rusak.", "error");
+        document.getElementById('uploadBtnText').innerText = "Unggah File Excel/CSV";
+      };
+      reader.readAsArrayBuffer(file);
+    }
 
-        function showToast(msg, isError = false) {
-            const toast = document.getElementById('toast');
-            const icon = document.getElementById('toast-icon');
-            document.getElementById('toast-message').innerText = msg;
+    function setupEventListeners() {
+      // Filter Change Handlers
+      document.getElementById('filterToko').addEventListener('change', applyFilters);
+      document.getElementById('filterKonten').addEventListener('change', applyFilters);
+      document.getElementById('filterStatus').addEventListener('change', applyFilters);
+      document.getElementById('filterSearch').addEventListener('input', applyFilters);
 
-            if (isError) {
-                icon.className = "fa-solid fa-circle-exclamation text-rose-400 text-lg";
-            } else {
-                icon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
-            }
-
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
+      // Pagination Controls
+      document.getElementById('prevPageBtn').addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderTable();
         }
+      });
 
-        function exportDoc() {
-            if (!currentAdsData || currentAdsData.length === 0) {
-                showToast("Belum ada naskah iklan untuk diunduh!", true);
-                return;
-            }
-
-            let htmlContent = `
-                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-                <head>
-                    <meta charset='utf-8'>
-                    <title>10 Naskah Hook Iklan Penjualan AI</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; color: #1e293b; }
-                        h1 { color: #4338ca; }
-                        .ad-box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
-                        .p1 { background: #fff1f2; border-left: 4px solid #f43f5e; padding: 10px; margin-bottom: 10px; }
-                        .p2 { background: #ecfdf5; border-left: 4px solid #10b981; padding: 10px; margin-bottom: 10px; }
-                        .hashtags { color: #4338ca; font-weight: bold; }
-                    </style>
-                </head>
-                <body>
-                    <h1>10 Kalimat Hook Iklan Penjualan (Masalah & Solusi)</h1>
-                    <p><b>Produk:</b> ${currentProductIdentification?.productName || '-'}</p>
-                    <p><b>Kategori:</b> ${currentProductIdentification?.category || '-'}</p>
-                    <hr>
-                    ${currentAdsData.map((ad, idx) => `
-                        <div class="ad-box">
-                            <h3>#${idx + 1}. ${ad.title} (${ad.hookAngle})</h3>
-                            <div class="p1"><b>Paragraf 1 (Masalah):</b><br>${ad.paragraph1}</div>
-                            <div class="p2"><b>Paragraf 2 (Solusi & CTA):</b><br>${ad.paragraph2}</div>
-                            <p><b>Deskripsi Video:</b> ${ad.videoDescription}</p>
-                            <p class="hashtags">Tagar: ${ad.hashtags}</p>
-                        </div>
-                    `).join('')}
-                </body>
-                </html>
-            `;
-
-            const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Naskah_Hook_Iklan_${(currentProductIdentification?.productName || 'Produk').replace(/\s+/g, '_')}.doc`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            showToast("File DOC berhasil diunduh!");
+      document.getElementById('nextPageBtn').addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderTable();
         }
+      });
 
-        function exportPDF() {
-            if (!currentAdsData || currentAdsData.length === 0) {
-                showToast("Belum ada naskah iklan untuk diunduh!", true);
-                return;
-            }
+      // Reset Data Button
+      document.getElementById('resetDataBtn').addEventListener('click', () => {
+        processData(SAMPLE_DATA);
+        showStatus("Berhasil mereset data ke sampel awal.", "info");
+        document.getElementById('uploadBtnText').innerText = "Unggah File Excel/CSV";
+      });
 
-            const element = document.getElementById('results-section');
-            const opt = {
-                margin:       [10, 10, 10, 10],
-                filename:     `Naskah_Hook_Iklan_${(currentProductIdentification?.productName || 'Produk').replace(/\s+/g, '_')}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            html2pdf().set(opt).from(element).save().then(() => {
-                showToast("File PDF berhasil diunduh!");
-            });
+      // Excel File Upload Listener
+      const fileInput = document.getElementById('excelFile');
+      fileInput.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+          handleFileUpload(e.target.files[0]);
         }
-    </script>
+      });
+
+      // Drag and Drop Zone Handling
+      const dropZone = document.getElementById('dropZone');
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.add('drop-zone--over');
+        }, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.remove('drop-zone--over');
+        }, false);
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files && files.length > 0) {
+          handleFileUpload(files[0]);
+        }
+      });
+
+      // Export CSV Handler
+      document.getElementById('exportCsvBtn').addEventListener('click', () => {
+        if (!filteredData.length) return;
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "ID Pesanan,Tanggal,Toko,Nama Produk,Qty,GMV,Komisi Akhir,Jenis Konten,Status\n";
+
+        filteredData.forEach(d => {
+          const row = [
+            `"${d.id}"`,
+            `"${d.rawTanggal}"`,
+            `"${d.toko}"`,
+            `"${d.produk.replace(/"/g, '""')}"`,
+            d.qty,
+            d.gmv,
+            d.komisi,
+            `"${d.konten}"`,
+            `"${d.status}"`
+          ].join(",");
+          csvContent += row + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Rekap_Afiliasi_Terfilter.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+    }
+  </script>
 </body>
 </html>
